@@ -67,7 +67,7 @@ router
 router
 .route("/cover-image")
 .patch(verifyJWT, upload
-.single("/coverImage"), updateUserCoverImage)
+.single("coverImage"), updateUserCoverImage)
 
 // getting user channel profile
 router
