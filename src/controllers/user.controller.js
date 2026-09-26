@@ -198,7 +198,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "unauthorized request");
@@ -221,7 +221,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         const options = {
             httpOnly: true,
-            secret: true
+            secure: true
         }
         const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
         return res
@@ -231,7 +231,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             .json(
                 new ApiResponse(
                     200,
-                    { accessToken, refreshToekn: newRefreshToken },
+                    { accessToken, refreshToken: newRefreshToken },
                     "Access token refresh"
                 )
             )
@@ -244,11 +244,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword, confirmPassword } = req.body
 
-    if (!newPassword === confirmPassword) {
+    if (newPassword !== confirmPassword) {
         throw new ApiError(400, "new password is matched with the confirm password")
     }
 
-    const user = User.findById(req.user?._id)
+    const user = await User.findById(req.user?._id)
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if (!isPasswordCorrect) {
@@ -268,7 +268,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
-        .json(200, req.user, "user fetched successfully")
+        .json(new ApiResponse(200, req.user, "user fetched successfully"))
 });
 
 // if you want file change like avatar or coverImage then for that use another controller fnction and for the json data like name,email use another controller
@@ -280,7 +280,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
-    const user = User.findByIdAndUpdate(req.user?._id, {
+    const user = await User.findByIdAndUpdate(req.user?._id, {
         $set: {
             fullName,
             email: email
@@ -405,7 +405,7 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
         $project:{
             fullName:1,
             username:1,
-            subscribersCount:1,
+            subscriberCount:1,
             channelSubscribedToCount:1,
             isSubscribed:1,
             avatar:1,
@@ -430,7 +430,7 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
     // NOTE:>
     // in the aggregate to find the object id use id: new mongoose.Types.ObjectId(req.user._id) because mongoose save id as a string in the objectId
 
-    const user = User.aggregate([
+    const user = await User.aggregate([
         {
             $match: {
                 _id : new mongoose.Types.ObjectId(req.user._id)
@@ -440,7 +440,7 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
             $lookup:{
                 from:"videos",
                 localField:"watchHistory",
-                from:"_id",
+                foreignField:"_id",
                 as:"watchHistory",
                 // nesting of pipiline
                 pipeline:[
@@ -450,7 +450,7 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
                         localField:"owner",
                         foreignField:"_id",
                         as:"owner",
-                        pipiline:[
+                        pipeline:[
                             {
                                 $project:{
                                     fullName:1,
